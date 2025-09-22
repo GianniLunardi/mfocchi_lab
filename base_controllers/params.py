@@ -379,9 +379,9 @@ robot_params['go2'] ={'dt': 0.002,
                       # use real robot or simulation
                       'real_robot': False} # note the frames are all aligned with base for joints = 0
 
-robot_params['anymal_d'] ={'dt': 0.002,
-                        'kp': np.array([200., 200., 200.]*4),
-                        'kd': np.array([10., 10., 10.]*4),
+robot_params['anymal_d'] ={'dt': 0.0025,
+                        'kp': np.array([200., 100., 100.]*4),
+                        'kd': np.array([20., 20., 20.]*4),
                         'ki': np.array([0., 0., 0.]*4),
                            'kp_swing':  np.array([20., 30., 20.]*4),
                         'kd_swing':  np.array([1., 1., 1.]*4),
@@ -404,7 +404,7 @@ robot_params['anymal_d'] ={'dt': 0.002,
                         # virtual impedance wrench control
                         'kp_lin': np.array([1000., 1000., 800.]),
                         'kd_lin': np.array([150., 150., 100.]),
-                        'kp_ang': np.array([200., 200., 100.]),
+                        'kp_ang': np.array([500., 500., 500.]),
                         'kd_ang': np.array([10., 20., 20.]),    # REAL---------------------------
                         # joint pid for landing contoller after td + wbc (optional)
                         'kp_wbc_real': np.array([10., 10., 10.]*4),
@@ -448,7 +448,7 @@ robot_params['anymal_d'] ={'dt': 0.002,
                         'force_th': 5.,
                         'spawn_x': 0.0,
                         'spawn_y': 0.0,
-                        'spawn_z': 0.9,
+                        'spawn_z': 0.6,
                         'buffer_size': 50001
                     } # note the
 
