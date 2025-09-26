@@ -906,16 +906,36 @@ class QuadrupedController(BaseController):
                 Jb[start_row:end_row, :3] = np.zeros(3)
         return Jb
 
-    def evalThrust(self, t_, freq, amp_lin, amp_ang):
+    def evalThrust(self, t_, freq, amp_lin):
 
-        com = self.initial_com + np.multiply(amp_lin, np.sin(2*np.pi*freq * t_))
-        comd = np.multiply(2*np.pi*freq*amp_lin,  np.cos(2*np.pi*freq * t_))
-        comdd = np.multiply(np.power(2*np.pi*freq*amp_lin, 2), -np.sin(2*np.pi*freq * t_))
+        # com = self.initial_com + np.multiply(amp_lin, np.sin(2*np.pi*freq * t_))
+        # com = np.copy(self.initial_com)
+        # com[0] += amp_lin[0] * np.sin(2*np.pi*freq * t_)
+        # com[1] += amp_lin[1] * np.sin(2*np.pi*freq * t_)
 
-        eul = np.array([0., 0.0, 0]) + np.multiply(amp_ang, np.sin(2 * np.pi * freq * t_))
-        euld = np.multiply(2 * np.pi * freq * amp_ang, np.cos(2 * np.pi * freq * t_))
-        euldd = np.multiply(np.power(2 * np.pi * freq * amp_ang, 2), -np.sin(2 * np.pi * freq * t_))
+        com = np.array([
+            self.initial_com[0],
+            self.initial_com[1] + amp_lin[1] * np.cos(2 * np.pi * freq * t_),
+            self.initial_com[2] + amp_lin[2] * np.sin(2 * np.pi * freq * t_),
+        ])
 
+        comd = np.array([
+            0.,
+            -2 * np.pi * freq * amp_lin[1] * np.sin(2 * np.pi * freq * t_),
+            2 * np.pi * freq * amp_lin[2] * np.cos(2 * np.pi * freq * t_),
+        ])
+
+        comdd = np.array([
+            0.,
+            -(2 * np.pi * freq * amp_lin[1])**2 * np.cos(2 * np.pi * freq * t_),
+            -(2 * np.pi * freq * amp_lin[2])**2 * np.sin(2 * np.pi * freq * t_),
+        ])
+        
+        # comd = np.multiply(2*np.pi*freq*amp_lin,  np.cos(2*np.pi*freq * t_))
+        # comdd = np.multiply(np.power(2*np.pi*freq*amp_lin, 2), -np.sin(2*np.pi*freq * t_))
+
+        eul = np.array([0., 0.0, 0]) 
+        euld, euldd = np.copy(eul), np.copy(eul)
         Jb = p.computeJcb(self.W_contacts_sampled, com, self.stance_legs)
 
         W_des_basePose = np.empty(6)
@@ -1385,7 +1405,7 @@ class QuadrupedController(BaseController):
 
 
 if __name__ == '__main__':
-    p = QuadrupedController('anymal_d', debug_gui=True)
+    p = QuadrupedController('anymal_d', debug_gui=False)
     world_name = 'fast.world'
     use_gui = False
     
@@ -1452,28 +1472,27 @@ if __name__ == '__main__':
             else:
                 t = p.time - p.startMotion
 
-                sine_f = 0.8
-                sine_amp_lin = np.array([0., 0.05, 0.])
-                sine_amp_ang = np.array([0., 0., 0])
+                ellipse_f = 0.8
+                ellipse_amp_lin = np.array([0., 0.05, 0.02])
 
                 start = time.time()
-                p.q_des, p.qd_des, p.tau_ffwd, p.basePoseW_des, p.baseTwistW_des = p.evalThrust(t, sine_f, sine_amp_lin, sine_amp_ang)
+                p.q_des, p.qd_des, p.tau_ffwd, p.basePoseW_des, p.baseTwistW_des = p.evalThrust(t.item(), ellipse_f, ellipse_amp_lin)
                 p.send_des_jstate(p.q_des, p.qd_des, p.tau_ffwd)
                 p.solve_time[:, p.log_counter] = time.time() - start
                 
                 # p.send_command(p.q_des, p.qd_des, p.tau_ffwd, log_data_in_send_command=True)
 
-            # Publish des state to anymal simulator
-            # --> invert LH and RF to satisfy leg order 
-            q_des, qd_des = np.copy(p.q_des), np.copy(p.qd_des)
-            q_des[3:6], q_des[6:9] = p.q_des[6:9], p.q_des[3:6]
-            qd_des[3:6], qd_des[6:9] = p.qd_des[6:9], p.qd_des[3:6]
-            des_msg = JointState()
-            des_msg.name = p.joint_names
-            des_msg.position = q_des
-            des_msg.velocity = qd_des
+            # # Publish des state to anymal simulator
+            # # --> invert LH and RF to satisfy leg order 
+            # q_des, qd_des = np.copy(p.q_des), np.copy(p.qd_des)
+            # q_des[3:6], q_des[6:9] = p.q_des[6:9], p.q_des[3:6]
+            # qd_des[3:6], qd_des[6:9] = p.qd_des[6:9], p.qd_des[3:6]
+            # des_msg = JointState()
+            # des_msg.name = p.joint_names
+            # des_msg.position = q_des
+            # des_msg.velocity = qd_des
 
-            pub_des_state.publish(des_msg)
+            # pub_des_state.publish(des_msg)
 
 
             p.visualizeContacts()
@@ -1520,4 +1539,11 @@ if __name__ == '__main__':
         plt.ylabel("Cumulative Percentage")
         plt.ylim(0, 1.05)
         plt.xlim(0, 0.01)  
+        plt.legend(framealpha=1.0)
+
+        plt.figure()
+        plt.plot(p.basePoseW_log[1], p.basePoseW_log[2], c='blue', label='Real')
+        plt.plot(p.basePoseW_des_log[1], p.basePoseW_des_log[2], c='red', label='Ref')
+        plt.xlabel('y (m)')
+        plt.ylabel('z (m)')
         plt.legend(framealpha=1.0)

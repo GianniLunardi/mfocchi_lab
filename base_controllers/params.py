@@ -404,8 +404,8 @@ robot_params['anymal_d'] ={'dt': 0.0025,
                         # virtual impedance wrench control
                         'kp_lin': np.array([1000., 1000., 800.]),
                         'kd_lin': np.array([150., 150., 100.]),
-                        'kp_ang': np.array([500., 500., 500.]),
-                        'kd_ang': np.array([10., 20., 20.]),    # REAL---------------------------
+                        'kp_ang': np.array([800., 800., 800.]),
+                        'kd_ang': np.array([100., 100., 100.]),    # REAL---------------------------
                         # joint pid for landing contoller after td + wbc (optional)
                         'kp_wbc_real': np.array([10., 10., 10.]*4),
                         'kd_wbc_real': np.array([1., 1., 1.]*4),
