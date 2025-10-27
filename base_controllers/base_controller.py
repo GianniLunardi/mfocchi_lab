@@ -168,13 +168,7 @@ class BaseController(threading.Thread):
 
 
     def loadModelAndPublishers(self, xacro_path=None):
-
         # Loading a robot model of robot (Pinocchio)
-        if xacro_path is None:
-            xacro_path = rospkg.RosPack().get_path(
-                self.robot_name + '_description') + '/robots/' + self.robot_name + '.urdf.xacro'
-        else:
-            print("loading custom xacro path: ", xacro_path)
         self.robot = getRobotModelFloating(self.robot_name)
 
         # instantiating objects
@@ -190,7 +184,6 @@ class BaseController(threading.Thread):
         self.u.putIntoGlobalParamServer("verbose", self.verbose)
 
         self.apply_body_wrench = ros.ServiceProxy('/gazebo/apply_body_wrench', ApplyBodyWrench)
-
         self.broadcaster = SafeTFBroadcaster()
 
     def initSubscribers(self):
@@ -249,20 +242,17 @@ class BaseController(threading.Thread):
         self.u.setLegJointState(self.u.leg_map["RH"], grf, self.grForcesLocal_gt)
 
     def _receive_pose(self, msg):
-
-        self.quaternion = np.array([
-            msg.pose.pose.orientation.x,
-            msg.pose.pose.orientation.y,
-            msg.pose.pose.orientation.z,
-            msg.pose.pose.orientation.w
-        ])
-        self.euler = np.array(euler_from_quaternion(self.quaternion))
-        #unwrap
-        self.euler, self.euler_old = unwrap_vector(self.euler, self.euler_old)
+        self.quaternion[0] = msg.pose.pose.orientation.x
+        self.quaternion[1] = msg.pose.pose.orientation.y
+        self.quaternion[2] = msg.pose.pose.orientation.z
+        self.quaternion[3] = msg.pose.pose.orientation.w
 
         self.basePoseW[self.u.sp_crd["LX"]] = msg.pose.pose.position.x
         self.basePoseW[self.u.sp_crd["LY"]] = msg.pose.pose.position.y
         self.basePoseW[self.u.sp_crd["LZ"]] = msg.pose.pose.position.z
+
+        self.euler = np.array(euler_from_quaternion(self.quaternion))
+
         self.basePoseW[self.u.sp_crd["AX"]] = self.euler[0]
         self.basePoseW[self.u.sp_crd["AY"]] = self.euler[1]
         self.basePoseW[self.u.sp_crd["AZ"]] = self.euler[2]
@@ -276,6 +266,7 @@ class BaseController(threading.Thread):
 
         # compute orientation matrix
         self.b_R_w = self.math_utils.rpyToRot(self.euler)
+
 
     def _receive_jstate(self, msg):
         for msg_idx in range(len(msg.name)):
@@ -458,11 +449,11 @@ class BaseController(threading.Thread):
         # inertia w.r.t the base frame origin
         self.compositeRobotInertiaB = self.robot.compositeRobotInertiaB(self.configuration)
 
+
         if self.broadcast_world:
             self.broadcaster.sendTransform(self.u.linPart(self.basePoseW),
                                        self.quaternion,
                                        ros.Time.now(), '/base_link', '/world')
-
 
     def estimateContactForces(self):           
         # estimate ground reaction forces from tau
@@ -658,13 +649,15 @@ class BaseController(threading.Thread):
     def getNumberOfJointsPerLeg(self):
         ee_frames = conf.robot_params[self.robot_name]['ee_frames']
         first_foot_frame_id = self.robot.model.getFrameId(ee_frames[0])
-        joint_id = self.robot.model.frames[first_foot_frame_id].parent
+        joint_id = self.robot.model.frames[first_foot_frame_id].parentJoint
         # Walk up the kinematic tree starting from the parent joint
         count = 0
         while joint_id != 1:
             count += 1
             joint_id = self.robot.model.parents[joint_id]
         return count
+
+
 
     def logData(self):
         if (self.log_counter<conf.robot_params[self.robot_name]['buffer_size'] ):
